@@ -1,0 +1,10 @@
+[
+    {
+        "path": "/hello-world",
+        "url": "https://golang.org"
+    },
+    {
+        "path": "/123",
+        "url": "https://reddit.com"
+    }
+]
