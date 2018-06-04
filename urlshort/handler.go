@@ -2,8 +2,10 @@ package urlshort
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/boltdb/bolt"
 	"gopkg.in/yaml.v2"
 )
 
@@ -75,4 +77,31 @@ func JSONHandler(jsonData []byte, fallback http.Handler) (http.HandlerFunc, erro
 	}
 
 	return MapHandler(pathsToURLMap(paths), fallback), nil
+}
+
+// BoltHandler will lookup and redirecto to found paths in a Bolt database file.
+func BoltHandler(db *bolt.DB, fallback http.Handler) (http.HandlerFunc, error) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("PathToURL"))
+			if b == nil {
+				return fmt.Errorf("bucket does not exist")
+			}
+
+			u := b.Get([]byte(r.URL.EscapedPath()))
+			if u == nil {
+				fallback.ServeHTTP(w, r)
+				return nil
+			}
+
+			http.Redirect(w, r, string(u), http.StatusMovedPermanently)
+
+			return nil
+		})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+	}, nil
 }
